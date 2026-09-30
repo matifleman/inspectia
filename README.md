@@ -31,9 +31,8 @@ docs/               practice deliverables, report material, planning docs
 1. Accept the GitHub collaborator invite and the W&B team invite.
 2. Add the shared Drive folder `InspectIA/` to **My Drive** (right click → *Organize* → *Add shortcut*),
    so it is available at `/content/drive/MyDrive/InspectIA` in Colab.
-3. In Colab, open **Secrets** (key icon on the left) and add, with notebook access enabled:
-   - `GH_TOKEN`: a GitHub fine-grained token with read-only *Contents* access to this repo.
-   - `WANDB_API_KEY`: from <https://wandb.ai/authorize>.
+3. In Colab, open **Secrets** (key icon on the left) and add `WANDB_API_KEY` (from
+   <https://wandb.ai/authorize>), with notebook access enabled.
 
 ### Every session
 
