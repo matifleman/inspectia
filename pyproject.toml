@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inspectia"
+version = "0.1.0"
+description = "Visual surface-defect inspection on KolektorSDD2 (CNN vs. autoencoder)."
+requires-python = ">=3.11"
+# Runtime deps are pinned in requirements.txt; torch/torchvision come from Colab.
+
+[tool.setuptools.packages.find]
+where = ["src"]

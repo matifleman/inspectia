@@ -1,0 +1,18 @@
+# Data and artifacts (live in Google Drive, never in git)
+data/
+checkpoints/
+wandb/
+*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Notebooks / editors
+.ipynb_checkpoints/
+.vscode/
+.idea/

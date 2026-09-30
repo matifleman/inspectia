@@ -1,0 +1,14 @@
+# torch and torchvision are NOT listed: use the versions preinstalled in Colab
+# (recorded in README.md). Reinstalling them risks CUDA mismatches.
+#
+# TODO(phase 0, step 5): replace the lower bounds with == pins using the
+# versions printed by the last cell of notebooks/00_setup.ipynb on Colab.
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+matplotlib>=3.8
+seaborn>=0.13
+pyyaml>=6.0
+pillow>=10.0
+tqdm>=4.66
+wandb>=0.17
