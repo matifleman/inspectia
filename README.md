@@ -54,9 +54,10 @@ Training runs on Google Colab (T4 GPU). torch/torchvision are taken from Colab, 
 
 | Package | Colab version |
 |---|---|
-| Python | TODO |
-| torch | TODO |
-| torchvision | TODO |
+| Python | 3.13.15 |
+| torch | 2.11.0+cu130 |
+| torchvision | 0.26.0+cu130 |
+| CUDA / GPU | 13.0 / Tesla T4 |
 
 ## Dataset and license
 
