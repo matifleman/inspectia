@@ -12,3 +12,6 @@ pyyaml==6.0.3
 pillow==11.3.0
 tqdm==4.67.3
 wandb==0.28.1
+# Added for HOG features (Phase 2). Pin the Colab version after running 00_setup (section 5).
+scikit-image>=0.24
+joblib>=1.4
