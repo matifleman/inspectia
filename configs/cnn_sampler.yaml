@@ -1,0 +1,16 @@
+# Phase 3: ResNet18 with transfer learning, staged fine-tuning (plan 3.2). One change per experiment.
+name: cnn_resnet18_sampler
+seed: 42
+data:
+  val_frac: 0.2
+  img_size: [608, 224]
+  batch_size: 32
+  num_workers: 2
+  imbalance: sampler          # WeightedRandomSampler instead of pos_weight (plan 3.3)
+model: {arch: resnet18, pretrained: true}
+stages:
+  - {name: head,   epochs: 8, lr: 1.0e-3}   # only the new final layer
+  - {name: layer4, epochs: 8, lr: 1.0e-4}   # + last conv block, 10x lower lr
+train: {weight_decay: 1.0e-4, patience: 3, monitor: ap}   # monitor: ap | f2 (validation)
+threshold: {method: max_f2}
+wandb: {project: inspectia, group: cnn}

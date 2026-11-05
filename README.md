@@ -67,3 +67,13 @@ redistributed in this repo; `scripts/download_data.py` fetches it from the offic
 
 > Božič, J., Tabernik, D., & Skočaj, D. (2021). Mixed supervision for surface-defect detection:
 > from weakly to fully supervised learning. *Computers in Industry*, 129, 103459.
+
+## Project status and docs
+
+Current phase status, decisions log and results live in [`docs/ESTADO.md`](docs/ESTADO.md),
+[`docs/DECISIONES.md`](docs/DECISIONES.md) and [`docs/RESULTADOS.md`](docs/RESULTADOS.md).
+Study material: [`docs/GUIA_CONCEPTOS.md`](docs/GUIA_CONCEPTOS.md) and [`docs/GUIA_ESTUDIO.md`](docs/GUIA_ESTUDIO.md).
+
+Evaluation protocol (all models): F2 on the defective class is the primary metric; the threshold
+is the one that maximizes F2 on the validation split; the official test set is evaluated once,
+in Phase 5. Images are **vertical** (~228 x 635 px) and are resized to 608 x 224 (height x width).

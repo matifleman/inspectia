@@ -1,0 +1,16 @@
+# Phase 2: baseline on precomputed features. Validation only; the test set is not touched here.
+name: baseline
+seed: 42
+data:
+  val_frac: 0.2
+  img_size: [608, 224]        # (height, width): the images are vertical
+features:
+  extractors: [resnet18, hog]  # resnet18 = official baseline; hog = classic reference
+  batch_size: 64
+  hog_pixels_per_cell: [16, 16]
+models:
+  logistic: {C: [0.001, 0.01, 0.1, 1, 10]}
+  knn: {k: [1, 3, 5, 11, 21, 41]}
+selection_metric: average_precision   # picks C / k on validation
+threshold: {method: max_f2}            # official protocol (docs/planning, plan 2.1)
+wandb: {project: inspectia, group: baseline}

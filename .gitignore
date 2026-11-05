@@ -16,3 +16,11 @@ dist/
 .ipynb_checkpoints/
 .vscode/
 .idea/
+
+# macOS / local artifacts
+.DS_Store
+*.pt
+*.pth
+*.joblib
+features/
+results/

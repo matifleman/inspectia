@@ -1,0 +1,15 @@
+# Practice 7 control experiment: small CNN from scratch (no pretraining). Only arch/pretrained change.
+name: cnn_scratch
+seed: 42
+data:
+  val_frac: 0.2
+  img_size: [608, 224]
+  batch_size: 32
+  num_workers: 2
+  imbalance: pos_weight
+model: {arch: small_cnn, pretrained: false}
+stages:
+  - {name: all, epochs: 20, lr: 1.0e-3}
+train: {weight_decay: 1.0e-4, patience: 5, monitor: ap}
+threshold: {method: max_f2}
+wandb: {project: inspectia, group: cnn}
