@@ -24,7 +24,7 @@
 | 3 CNN | `03_cnn` + configs (ResNet18, sampler, scratch) | **Hecha** (las 3 configs corridas): oficial = `cnn.yaml` (val F2 0.918, AP 0.955). 3 semillas hechas: F2 0.923 ± 0.005, AP 0.956 ± 0.001. |
 | 4 Autoencoder | `04_autoencoder` + `configs/autoencoder.yaml` | **Hecha:** oficial `autoencoder_b2.yaml`, 3 semillas: val F2 0.733 ± 0.011, AP 0.792 ± 0.005 (siempre época 1). |
 | 5 Evaluación final | `05_evaluacion` (test una vez, Grad-CAM, errores) | **Hecha** (test evaluado una vez el 2026-11-06). Cifras oficiales en RESULTADOS.md (CNN F2 0.834 ± 0.013). Pendiente: revisión manual de FP/FN grandes y comparación con el paper. |
-| 6 Demo | Gradio + Hugging Face Spaces | **No empezada** (ver "Qué falta"). |
+| 6 Demo | Gradio + Hugging Face Spaces | **Código escrito (D-048), falta probarlo en la Mac y publicar el Space.** `src/inspectia/demo.py`, `demo/app.py`, `scripts/build_space.py`, `notebooks/06_demo.ipynb`. |
 | 7 Cierre | Informe, presentación, README portfolio, repo público | **No empezada** (ver "Qué falta"). |
 
 Resultados reales vigentes: ver `RESULTADOS.md` (todo en validación; ΔF2 CNN−baseline = +0.10, IC [0.035, 0.178]). Test: evaluado UNA vez (no se vuelve a usar para decidir nada).
@@ -37,9 +37,10 @@ Resultados reales vigentes: ver `RESULTADOS.md` (todo en validación; ΔF2 CNN�
 - `models.py`: `make_baseline`, `select_baseline` (por AP en val), `SmallCNN`, `ConvAutoencoder`/`build_autoencoder`, `build_resnet18`, `build_model`, `set_stage('head'|'layer4'|'all')`, `freeze_frozen_bn`.
 - `train.py`: `predict`, `sigmoid`, `fit_stage`, `save_checkpoint`; autoencoder: `error_map`, `score_variants` (mean/top5/top1/max), `anomaly_scores` (topk en CPU: en MPS es inestable), `fit_autoencoder`.
 - `evaluate.py`: `evaluate`, `best_f2_threshold` (**umbral oficial**), `threshold_at_recall`, `trivial_baselines`, `bootstrap_ci`, `paired_bootstrap_diff`, `plot_curves`, `plot_confusion`.
+- `demo.py` (Fase 6): `Inspector` (CNN + umbral de val + Grad-CAM → `Inspection`), `decide` (DEFECTUOSA/REVISAR/OK), `overlay_cam`. UI en `demo/app.py`; `scripts/build_space.py` arma `space/` (gitignored) para Hugging Face.
 - `final.py` (Fase 5): `build_registry`, `score_all`, `f2_curve`. `explain.py`: `gradcam(model,x,layer)`, `cam_vs_mask`.
 - `configs/`: `baseline`, `cnn` (oficial), `cnn_sampler`, `cnn_scratch`, `autoencoder`, `autoencoder_b4`, `autoencoder_b2` (oficial AE).
-- `notebooks/`: `00_setup` (Mati), `01_datos`, `02_baseline`, `03_cnn` (variable `CONFIG` y `SEED_OVERRIDE`), `04_autoencoder`, `05_evaluacion`. `scripts/download_data.py`.
+- `notebooks/`: `00_setup` (Mati), `01_datos`, `02_baseline`, `03_cnn` (variable `CONFIG` y `SEED_OVERRIDE`), `04_autoencoder`, `05_evaluacion`, `06_demo`. `scripts/download_data.py`, `scripts/build_space.py`.
 
 ## Cómo correr (Colab T4 oficial, o Mac local)
 1. Datos en `<repo>/data/KolektorSDD2/{train,test}` o en Drive. `python scripts/download_data.py --dest data` los baja.
@@ -70,7 +71,7 @@ Test (1004 imágenes, 110 defectuosas, umbral fijado en val): CNN F2 0.834 ± 0.
 |---|---|---|---|
 | 1 | Comparación con el paper | Copiar de Božič, Tabernik y Skočaj (2021) la tabla de KolektorSDD2 y el protocolo (métrica, split, resolución, umbral) y completar sección 9 de `05_evaluacion.ipynb` + `RESULTADOS.md`. No inventar números. PDF: prints.vicos.si/publications/385 · arXiv 2104.06064. Aclarar diferencias de protocolo (F2/AP con umbral de val vs lo que reportan). | _a asignar_ |
 | 2 | Revisión manual de errores | Mirar a ojo FP de mayor score (20245, 20651, 20002, 20846) y FN grandes (20141, 20625, 20969, 20772): ¿ruido de etiqueta, defecto invisible o fallo real? Anotar en RESULTADOS.md. | _a asignar_ |
-| 3 | Fase 6: demo | App Gradio: sube imagen → score CNN, decisión con el umbral de val, Grad-CAM (`explain.gradcam`, capa `layer4[-1]`). Publicar en Hugging Face Spaces (necesita cuenta y el `.pt` de la CNN). Lógica en `src/inspectia/` (p. ej. `demo.py`), `app.py` solo la interfaz. | _a asignar_ |
+| 3 | Fase 6: demo | Código hecho (D-048). Falta: correr `06_demo.ipynb`, probar `python demo/app.py` (`pip install gradio`), crear la cuenta/Space en Hugging Face y subir `space/` (`python scripts/build_space.py --out space`). | Juan |
 | 4 | Fase 7: informe | Estructura y tono del plan. Insumos: RESULTADOS.md, DECISIONES.md, figuras del `05_evaluacion`, `GUIA_CONCEPTOS.md`. Declarar limitaciones y que el test se usó una vez. | _a asignar_ |
 | 5 | Fase 7: presentación y README portfolio | README en inglés orientado a portfolio, repo público (dataset citado, no redistribuido). | _a asignar_ |
 | 6 | Prácticas 2 a 8 | Redacción de la consigna según `docs/planning` y el material ya escrito. | _a asignar_ |
