@@ -49,7 +49,7 @@ Resultados reales vigentes: ver `RESULTADOS.md` (todo en validación; ΔF2 CNN�
 5. NO volver a correr `05_evaluacion` desde cero: el test ya se evaluó (lock en `results/test_scores.npz`).
 
 ## Artefactos que no están en git (gitignored)
-Están solo en la Mac de Juan hasta que se suban a la carpeta compartida de Drive `InspectIA/artefactos/` (**pendiente: Juan los sube**; anotar acá la ruta final).
+Subidos el 2026-11-06 a la carpeta compartida de Drive `InspectIA/artefactos/{checkpoints,results}/` (misma estructura que el repo). Para usarlos: copiar `artefactos/checkpoints` → `repo/checkpoints/` y `artefactos/results` → `repo/results/` (en Colab con Drive montado: `cp -r`).
 | Archivo | Para qué | Tamaño |
 |---|---|---|
 | `checkpoints/cnn_resnet18.pt` (+ `_s1`, `_s2`) | CNN oficial, demo (Fase 6) y Grad-CAM | 45 MB c/u |
