@@ -206,3 +206,24 @@ def make_loaders(root: str | Path, splits: dict[str, pd.DataFrame], batch_size: 
         else:
             loaders[name] = DataLoader(ds, shuffle=is_train, generator=g if is_train else None, **common)
     return loaders
+
+
+def make_ae_loaders(root: str | Path, splits: dict[str, pd.DataFrame], batch_size: int = 16,
+                    size: tuple[int, int] = IMG_SIZE, num_workers: int = 2,
+                    augment: bool = True, seed: int = SEED) -> dict[str, DataLoader]:
+    """Loaders for the autoencoder (Phase 4).
+
+    "train_good": ONLY the good parts of train (the autoencoder never sees a defect while training),
+                  with augmentation (train only).
+    "val":        ALL of validation with labels, no augmentation: used to pick epoch, score variant
+                  and threshold. The test split is deliberately NOT built here.
+    """
+    g = torch.Generator().manual_seed(seed)
+    common = dict(batch_size=batch_size, num_workers=num_workers,
+                  pin_memory=torch.cuda.is_available(), persistent_workers=num_workers > 0)
+    good = splits["train"][splits["train"]["label"] == 0].reset_index(drop=True)
+    assert len(good) > 0 and good["label"].sum() == 0, "train_good must contain only good parts"
+    train_ds = InspectDataset(good, root, get_transforms(augment, size))
+    val_ds = InspectDataset(splits["val"], root, get_transforms(False, size))
+    return {"train_good": DataLoader(train_ds, shuffle=True, generator=g, **common),
+            "val": DataLoader(val_ds, shuffle=False, **common)}

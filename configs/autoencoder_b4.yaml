@@ -1,0 +1,20 @@
+# Phase 4 experiment: narrower bottleneck (4 channels). ONLY the bottleneck changes vs autoencoder.yaml.
+# One change per experiment. Validation (with labels) only selects epoch, score variant and threshold.
+name: autoencoder_b4
+seed: 42
+data:
+  val_frac: 0.2
+  img_size: [608, 224]
+  batch_size: 16
+  num_workers: 2
+  augment: true
+model: {arch: conv_ae, base: 16, bottleneck: 4}
+train:
+  epochs: 30
+  lr: 1.0e-3
+  weight_decay: 1.0e-5
+  patience: 6
+  monitor: top1        # score variant used for early stopping (mean | top5 | top1 | max), by val AP
+  smooth: 9            # odd kernel of the local average before taking the worst pixels
+threshold: {method: max_f2}
+wandb: {project: inspectia, group: autoencoder}
