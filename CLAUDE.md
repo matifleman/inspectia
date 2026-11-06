@@ -33,3 +33,6 @@ CNN supervisada (ResNet18) vs autoencoder (anomalías) vs baseline (features Res
 
 ## Artefactos que NO están en git
 `checkpoints/`, `results/`, `features/`, `data/` están en `.gitignore`. Se comparten por la carpeta de Drive `InspectIA/` (ver ESTADO.md, sección "Artefactos"). Los números oficiales están copiados en `docs/RESULTADOS.md`.
+
+## Demo (Fase 6)
+Demo local en `demo/app.py` (Gradio) y pública en un Space Static de Hugging Face (ONNX Runtime Web, `web/index.html`, `scripts/export_onnx.py`). No usar imágenes del dataset en el Space. Si cambia el modelo oficial o el umbral, reexportar y actualizar `RESULTADOS.md` y `DECISIONES.md`.

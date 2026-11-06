@@ -134,5 +134,24 @@ Protocolo D-045: cada modelo con SU umbral fijado en validación; nada se reajus
 
 **Sensibilidad al umbral (solo informativa, NO se usó para elegir nada):** en test la curva de F2 de la CNN tiene una meseta ancha (≈ 0.80–0.86 entre umbrales 0.2 y 0.9); el baseline es más puntiagudo y el autoencoder muy puntiagudo (su umbral fijado en val queda a la izquierda de su pico en test).
 
+## Fase 6 — Demo (2026-11-06, `scripts/export_onnx.py`, `web/index.html`, `demo/app.py`)
+Qué es y por qué: ver D-048 (Gradio local, tres veredictos) y D-049 (Space Static con ONNX Runtime Web porque Gradio es pago en Hugging Face). Space público: https://huggingface.co/spaces/ipejinakis/inspetIA (estado Running el 2026-11-06). Usa la CNN oficial `cnn_resnet18.pt` (semilla 42), umbral de validación 0.6633 (máx. F2), zona REVISAR desde 0.30 (criterio de producto, no validado con test).
+
+**Verificación de equivalencia** (salida de `export_onnx.py`, 6 imágenes de VALIDACIÓN: 3 defectuosas + 3 buenas; diferencia máxima absoluta):
+| Comparación | Diferencia máx. |
+|---|---|
+| logit del wrapper vs modelo original | 0.0 |
+| Grad-CAM = ReLU(Σ w_c·A_c) vs `explain.gradcam` (normalizado) | 2.98e-07 |
+| logit ONNX vs PyTorch | 7.63e-05 |
+| Grad-CAM ONNX vs PyTorch | 3.52e-06 |
+El Grad-CAM calculado así es exacto porque tras `layer4` hay average-pool + Linear(512→1).
+
+**Prueba manual en el navegador (localhost, 2026-11-06)** con dos imágenes de TRAIN (la red las vio al entrenar: solo prueba que la app anda, no mide rendimiento):
+| Imagen | Real | Veredicto | Probabilidad | Grad-CAM |
+|---|---|---|---|---|
+| `train/10628.png` | defectuosa (3863 px) | DEFECTUOSA | 1.000 | cae sobre el defecto (borde izquierdo) |
+| `train/11318.png` | buena | OK | 0.047 | dibuja zonas igual (se normaliza por imagen; solo informativo si el veredicto no es OK) |
+Pendiente de registrar: salida de la celda de consistencia de `06_demo.ipynb` (`max |diff|` contra los scores de val guardados) y prueba del Space público.
+
 ## Pendiente
-Comparación con el paper (datos reales pendientes), revisión manual de los FP/FN grandes, Fase 6 (demo) y Fase 7 (informe).
+Comparación con el paper (datos reales pendientes), revisión manual de los FP/FN grandes y Fase 7 (informe, presentación, README portfolio, repo público).

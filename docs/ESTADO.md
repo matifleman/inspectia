@@ -24,7 +24,7 @@
 | 3 CNN | `03_cnn` + configs (ResNet18, sampler, scratch) | **Hecha** (las 3 configs corridas): oficial = `cnn.yaml` (val F2 0.918, AP 0.955). 3 semillas hechas: F2 0.923 ± 0.005, AP 0.956 ± 0.001. |
 | 4 Autoencoder | `04_autoencoder` + `configs/autoencoder.yaml` | **Hecha:** oficial `autoencoder_b2.yaml`, 3 semillas: val F2 0.733 ± 0.011, AP 0.792 ± 0.005 (siempre época 1). |
 | 5 Evaluación final | `05_evaluacion` (test una vez, Grad-CAM, errores) | **Hecha** (test evaluado una vez el 2026-11-06). Cifras oficiales en RESULTADOS.md (CNN F2 0.834 ± 0.013). Pendiente: revisión manual de FP/FN grandes y comparación con el paper. |
-| 6 Demo | Gradio local + Space Static en Hugging Face | **Gradio local hecho y probado** (D-048). Space público: Gradio es pago en HF → Static + ONNX Runtime Web (D-049): `scripts/export_onnx.py`, `web/index.html`; falta exportar, probar y subir. |
+| 6 Demo | Gradio local + Space Static en Hugging Face | **Hecha.** Space público (Static + ONNX Runtime Web, D-049): https://huggingface.co/spaces/ipejinakis/inspetIA (estado Running el 2026-11-06). App Gradio local: `python demo/app.py` (D-048). |
 | 7 Cierre | Informe, presentación, README portfolio, repo público | **No empezada** (ver "Qué falta"). |
 
 Resultados reales vigentes: ver `RESULTADOS.md` (todo en validación; ΔF2 CNN−baseline = +0.10, IC [0.035, 0.178]). Test: evaluado UNA vez (no se vuelve a usar para decidir nada).
@@ -48,6 +48,8 @@ Resultados reales vigentes: ver `RESULTADOS.md` (todo en validación; ΔF2 CNN�
 3. Orden: `01_datos` → `02_baseline` → `03_cnn` → `04_autoencoder` → `05_evaluacion`. Primero `SMOKE=True`.
 4. **No hace falta reentrenar para la demo ni el informe**: usar los artefactos de abajo.
 5. NO volver a correr `05_evaluacion` desde cero: el test ya se evaluó (lock en `results/test_scores.npz`).
+6. Demo local (Fase 6): `pip install gradio` en el venv y `python demo/app.py`. Notebook `06_demo` prueba la lógica sin interfaz.
+7. Demo pública (Space Static, gratis): `python scripts/export_onnx.py --out space_static` (necesita `onnx` y `onnxruntime`; verifica equivalencia con PyTorch), probar con `cd space_static && python -m http.server 8000` y subir los 4 archivos al Space. `space/` y `space_static/` están en `.gitignore`. Gradio Spaces en Hugging Face requieren plan pago (D-049).
 
 ## Artefactos que no están en git (gitignored)
 Subidos el 2026-11-06 a la carpeta compartida de Drive `InspectIA/artefactos/{checkpoints,results}/` (misma estructura que el repo). Para usarlos: copiar `artefactos/checkpoints` → `repo/checkpoints/` y `artefactos/results` → `repo/results/` (en Colab con Drive montado: `cp -r`).
@@ -71,7 +73,7 @@ Test (1004 imágenes, 110 defectuosas, umbral fijado en val): CNN F2 0.834 ± 0.
 |---|---|---|---|
 | 1 | Comparación con el paper | Copiar de Božič, Tabernik y Skočaj (2021) la tabla de KolektorSDD2 y el protocolo (métrica, split, resolución, umbral) y completar sección 9 de `05_evaluacion.ipynb` + `RESULTADOS.md`. No inventar números. PDF: prints.vicos.si/publications/385 · arXiv 2104.06064. Aclarar diferencias de protocolo (F2/AP con umbral de val vs lo que reportan). | _a asignar_ |
 | 2 | Revisión manual de errores | Mirar a ojo FP de mayor score (20245, 20651, 20002, 20846) y FN grandes (20141, 20625, 20969, 20772): ¿ruido de etiqueta, defecto invisible o fallo real? Anotar en RESULTADOS.md. | _a asignar_ |
-| 3 | Fase 6: demo | Gradio local hecho. Falta el Space público (Static): `python scripts/export_onnx.py --out space_static` (necesita `onnx` y `onnxruntime`), probar en `http://localhost:8000` (`cd space_static && python -m http.server 8000`) y subir el contenido a un Space Static de Hugging Face. Anotar la URL acá. | Juan |
+| 3 | Fase 6: demo | **Hecha.** URL: https://huggingface.co/spaces/ipejinakis/inspetIA. Pendiente solo: probar el Space con una buena y una defectuosa (confirmado en localhost). | Juan |
 | 4 | Fase 7: informe | Estructura y tono del plan. Insumos: RESULTADOS.md, DECISIONES.md, figuras del `05_evaluacion`, `GUIA_CONCEPTOS.md`. Declarar limitaciones y que el test se usó una vez. | _a asignar_ |
 | 5 | Fase 7: presentación y README portfolio | README en inglés orientado a portfolio, repo público (dataset citado, no redistribuido). | _a asignar_ |
 | 6 | Prácticas 2 a 8 | Redacción de la consigna según `docs/planning` y el material ya escrito. | _a asignar_ |
