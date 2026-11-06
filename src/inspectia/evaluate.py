@@ -108,6 +108,38 @@ def bootstrap_ci(y_true, scores, threshold: float, n_boot: int = 1000, alpha: fl
     return {k: (float(np.percentile(v, lo)), float(np.percentile(v, hi))) for k, v in vals.items()}
 
 
+def paired_bootstrap_diff(y_true, scores_a, thr_a, scores_b, thr_b, n_boot: int = 2000,
+                          alpha: float = 0.05, seed: int = 42) -> dict:
+    """Paired stratified bootstrap of F2(B) - F2(A), each model at its own FIXED threshold.
+
+    The SAME resampled images are used for both models, so the interval reflects how much
+    the difference depends on which images happen to be in the set. If the interval contains 0,
+    "B is better than A" is not supported by this data (typical with ~49 defective images).
+    Returns the observed difference, the CI and P(diff <= 0) (share of resamples where B does not win).
+    """
+    y = np.asarray(y_true).astype(int)
+    pa = (np.asarray(scores_a, dtype=float) >= thr_a).astype(int)
+    pb = (np.asarray(scores_b, dtype=float) >= thr_b).astype(int)
+    pos, neg = np.where(y == 1)[0], np.where(y == 0)[0]
+    rng = np.random.RandomState(seed)
+
+    def f2(pred, p, n):
+        tp = pred[p].sum()
+        fn, fp = len(p) - tp, pred[n].sum()
+        prec = tp / (tp + fp) if tp + fp else 0.0
+        rec = tp / (tp + fn) if tp + fn else 0.0
+        return 5 * prec * rec / (4 * prec + rec) if 4 * prec + rec else 0.0
+
+    diffs = np.empty(n_boot)
+    for i in range(n_boot):
+        p, n = rng.choice(pos, len(pos)), rng.choice(neg, len(neg))
+        diffs[i] = f2(pb, p, n) - f2(pa, p, n)
+    observed = f2(pb, pos, neg) - f2(pa, pos, neg)
+    lo, hi = 100 * alpha / 2, 100 * (1 - alpha / 2)
+    return {"diff": float(observed), "ci": (float(np.percentile(diffs, lo)), float(np.percentile(diffs, hi))),
+            "p_not_better": float((diffs <= 0).mean())}
+
+
 def plot_curves(results: dict[str, tuple], title: str = ""):
     """ROC and Precision-Recall curves of several models. results = {name: (y_true, scores)}."""
     import matplotlib.pyplot as plt
