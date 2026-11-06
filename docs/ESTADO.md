@@ -20,7 +20,7 @@
 | 2 Protocolo + baseline | `evaluate.py`, `02_baseline` | **Hecha.** Baseline oficial: ResNet18+logística C=0.01, val F2 0.816. |
 | 3 CNN | `03_cnn` + configs (ResNet18, sampler, scratch) | **Hecha** (las 3 configs corridas): oficial = `cnn.yaml` (val F2 0.918, AP 0.955). 3 semillas hechas: F2 0.923 ± 0.005, AP 0.956 ± 0.001. |
 | 4 Autoencoder | `04_autoencoder` + `configs/autoencoder.yaml` | **Hecha:** oficial `autoencoder_b2.yaml`, 3 semillas: val F2 0.733 ± 0.011, AP 0.792 ± 0.005 (siempre época 1). |
-| 5 Evaluación final | `05_evaluacion` (test una vez, Grad-CAM, errores) | No empezada. |
+| 5 Evaluación final | `05_evaluacion` (test una vez, Grad-CAM, errores) | **Código listo, sin ejecutar** (protocolo D-045 aprobado). Correr UNA vez, con todo commiteado y pusheado. |
 | 6 Demo | Gradio + Hugging Face Spaces | No empezada. |
 | 7 Cierre | Informe, presentación, README portfolio, repo público | No empezada. |
 
@@ -34,6 +34,7 @@ Resultados reales vigentes: ver `RESULTADOS.md` (todo en validación; ΔF2 CNN�
 - `models.py`: `DEFAULT_GRIDS`, `make_baseline`, `select_baseline` (por AP en val), `SmallCNN`, `ConvAutoencoder`/`build_autoencoder`, `build_resnet18`, `build_model`, `set_stage('head'|'layer4'|'all')`, `freeze_frozen_bn`, `count_trainable`. (Autoencoder: Fase 4.)
 - `train.py`: `predict`, `sigmoid`, `fit_stage(... monitor='ap'|'f2')` (restaura mejor época), `save_checkpoint`; autoencoder: `error_map`, `score_variants` (mean/top5/top1/max), `anomaly_scores`, `fit_autoencoder`.
 - `evaluate.py`: `evaluate`, `best_f2` / `best_f2_threshold` (**umbral oficial**), `threshold_at_recall` (secundario), `trivial_baselines` (siempre OK / marcar todo), `bootstrap_ci`, `paired_bootstrap_diff` (ΔF2 entre dos modelos), `plot_curves`, `plot_confusion`.
+- `final.py` (Fase 5): `build_registry`, `score_all`, `f2_curve`. `explain.py`: `gradcam`, `cam_vs_mask`.
 - `configs/*.yaml`: `baseline`, `cnn`, `cnn_sampler`, `cnn_scratch`. `notebooks/`: `00_setup` (Mati), `01_datos`, `02_baseline`, `03_cnn`. `scripts/download_data.py` (Mati; borra duplicados exactos).
 
 ## Cómo correr (local en Mac o Colab)
@@ -64,5 +65,5 @@ Muy ajustado: el plan original son 10 semanas. Delegar lo marcado "delegable" en
 
 ## Próximo paso
 1. (Opcional) semillas de scratch.
-2. Fase 5 (`05_evaluacion`): protocolo en D-045 (confirmar antes de correr el test). Entorno: autoencoder. Entorno local: `.venv` en `InspectIA/` con Python 3.14 y torch 2.15 (el plan decía 3.11; sin problemas hasta ahora). VS Code: kernel `InspectIA (.venv)` registrado con ipykernel; abrir la carpeta `InspectIA/`, no `repo/`.
+2. Fase 5: commit y push, y correr `05_evaluacion` una sola vez (D-045 aprobado). Después, completar la comparación con el paper con datos reales. Entorno: autoencoder. Entorno local: `.venv` en `InspectIA/` con Python 3.14 y torch 2.15 (el plan decía 3.11; sin problemas hasta ahora). VS Code: kernel `InspectIA (.venv)` registrado con ipykernel; abrir la carpeta `InspectIA/`, no `repo/`.
 3. Commit/push de `feat/baseline-cnn` y PR a `main` (Mati revisa). `splits/` hay que agregarlo a git.
