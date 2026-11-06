@@ -1,7 +1,7 @@
 # InspectIA — Resultados reales (solo números con corrida detrás)
 
 Todo en VALIDACIÓN (467 imágenes, 49 defectuosas = 20 % estratificado del train, seed 42, entrada 608×224 correcta).
-**TEST: todavía NO evaluado** (se evalúa una vez, en `05_evaluacion`, D-026).
+**TEST: evaluado UNA vez el 2026-11-06 (`05_evaluacion`, D-026/D-045). Ver la sección "Fase 5 — TEST" al final; esas son las cifras a citar en el informe.**
 `results/` y `checkpoints/` no van a git (están en `.gitignore`): este archivo es el registro de los números.
 Los resultados anteriores al fix de orientación (D-020) se eliminaron de acá; siguen en el historial de git.
 
@@ -96,5 +96,43 @@ ConvAutoencoder (202 mil parámetros, cuello 38×14×16), entrenado solo con las
 - AP y F2 son estables entre semillas; lo que se mueve es el equilibrio recall/precisión (el umbral cae en puntos distintos de la meseta). Las 3 semillas eligen la época 1 y la variante `top1`.
 - Comparación en validación (media de 3 semillas): CNN F2 0.923 / AP 0.956 · baseline F2 0.816 / AP 0.880 · **autoencoder F2 0.733 / AP 0.792**. El orden CNN > baseline > autoencoder se sostiene, con la salvedad del sesgo de selección en val.
 
+## Fase 5 — TEST oficial (2026-11-06, `05_evaluacion`, 1004 imágenes, 110 defectuosas)
+Protocolo D-045: cada modelo con SU umbral fijado en validación; nada se reajustó con el test. Referencias triviales en test: "siempre OK" F2 0 · "marcar todo" precision 0.110, **F2 0.381**.
+
+| Modelo | Umbral (val) | F2 | Recall | Precision | AUC | AP | FN | FP |
+|---|---|---|---|---|---|---|---|---|
+| Baseline (ResNet18 + logística) | 0.671 | 0.685 [0.60–0.77] | 0.664 | 0.785 | 0.899 | 0.780 | 37 | 20 |
+| CNN, semilla 42 | 0.663 | 0.822 [0.76–0.89] | 0.800 | 0.926 | 0.966 | 0.914 | 22 | 7 |
+| CNN, semilla 1 | 0.600 | 0.830 | 0.818 | 0.882 | 0.969 | 0.918 | 20 | 12 |
+| CNN, semilla 2 | 0.304 | 0.849 | 0.845 | 0.861 | 0.963 | 0.917 | 17 | 15 |
+| **CNN, media ± desvío** | | **0.834 ± 0.013** | 0.821 ± 0.023 | 0.890 ± 0.033 | 0.966 ± 0.003 | **0.916 ± 0.002** | 19.7 ± 2.5 | 11.3 ± 4.0 |
+| Autoencoder b2, semilla 42 | 0.123 | 0.715 [0.65–0.78] | 0.773 | 0.552 | 0.911 | 0.747 | 25 | 69 |
+| Autoencoder b2, semilla 1 | 0.151 | 0.626 | 0.618 | 0.660 | 0.900 | 0.728 | 42 | 35 |
+| Autoencoder b2, semilla 2 | 0.125 | 0.713 | 0.745 | 0.607 | 0.917 | 0.758 | 28 | 53 |
+| **Autoencoder, media ± desvío** | | **0.685 ± 0.051** | 0.712 ± 0.082 | 0.607 ± 0.054 | 0.909 ± 0.008 | **0.744 ± 0.015** | 31.7 ± 9.1 | 52.3 ± 17.0 |
+
+**De validación a test (sesgo de selección):** F2 cae 0.132 (baseline), 0.075–0.097 (CNN, las 3 semillas) y 0.018–0.097 (autoencoder). AP cae de 0.880 → 0.780 (baseline), 0.956 → 0.916 (CNN), 0.792 → 0.744 (autoencoder). El orden se mantiene entre CNN y el resto, pero el baseline cae más y empata con el autoencoder.
+
+**Diferencias (bootstrap pareado de ΔF2 en test, semilla 42):**
+| Comparación | ΔF2 | IC 95 % | Veredicto |
+|---|---|---|---|
+| CNN − baseline | +0.138 | [+0.082, +0.200] | real |
+| Autoencoder − baseline | +0.031 | [−0.056, +0.117] | no concluyente (empate) |
+| CNN − autoencoder | +0.107 | [+0.041, +0.179] | real |
+
+**Recall por tamaño de defecto (test; detectadas/total):**
+| Tamaño | Baseline | CNN (s42) | Autoencoder (s42) |
+|---|---|---|---|
+| < 250 px | 0/5 | 0/5 | 3/5 |
+| 250–1000 px | 4/19 | 11/19 | 12/19 |
+| 1000–3000 px | 26/36 | 31/36 | 28/36 |
+| > 3000 px | 43/50 | 46/50 | 42/50 |
+
+**Errores de la CNN (s42):** 22 FN, 7 FP. 13 de los 22 FN son defectos < 1000 px (el 22 % de los defectos explica el 59 % de los FN); 9 FN son ≥ 1000 px, incluidos 4 de más de 3000 px con score bajo (imágenes 20141, 20625, 20969, 20772), que no se explican por el tamaño. Los 4 FP de mayor score (20245, 20651, 20002, 20846; scores 0.91–0.98) tienen un punto brillante en el centro del mapa de calor: hay que revisarlos a mano, pueden ser defectos mínimos sin anotar (ruido de etiquetas).
+
+**Grad-CAM (CNN s42, 88 defectuosas detectadas):** el pico del mapa cae dentro del defecto en el 69 %; el 26 % de la energía cae en la máscara, que ocupa en promedio el 3,6 % de la imagen (≈ 7× el azar). En varios FN pequeños (20228, 20231, 20275, 20259) el mapa sí se enciende sobre el defecto pero el score queda por debajo del umbral: la red lo ve, no llega a superar el umbral fijado en validación.
+
+**Sensibilidad al umbral (solo informativa, NO se usó para elegir nada):** en test la curva de F2 de la CNN tiene una meseta ancha (≈ 0.80–0.86 entre umbrales 0.2 y 0.9); el baseline es más puntiagudo y el autoencoder muy puntiagudo (su umbral fijado en val queda a la izquierda de su pico en test).
+
 ## Pendiente
-Semillas de scratch (opcional), Fase 5 (test, una sola vez).
+Comparación con el paper (datos reales pendientes), revisión manual de los FP/FN grandes, Fase 6 (demo) y Fase 7 (informe).

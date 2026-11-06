@@ -20,11 +20,11 @@
 | 2 Protocolo + baseline | `evaluate.py`, `02_baseline` | **Hecha.** Baseline oficial: ResNet18+logística C=0.01, val F2 0.816. |
 | 3 CNN | `03_cnn` + configs (ResNet18, sampler, scratch) | **Hecha** (las 3 configs corridas): oficial = `cnn.yaml` (val F2 0.918, AP 0.955). 3 semillas hechas: F2 0.923 ± 0.005, AP 0.956 ± 0.001. |
 | 4 Autoencoder | `04_autoencoder` + `configs/autoencoder.yaml` | **Hecha:** oficial `autoencoder_b2.yaml`, 3 semillas: val F2 0.733 ± 0.011, AP 0.792 ± 0.005 (siempre época 1). |
-| 5 Evaluación final | `05_evaluacion` (test una vez, Grad-CAM, errores) | **Código listo, sin ejecutar** (protocolo D-045 aprobado). Correr UNA vez, con todo commiteado y pusheado. |
+| 5 Evaluación final | `05_evaluacion` (test una vez, Grad-CAM, errores) | **Hecha** (test evaluado una vez el 2026-11-06). Cifras oficiales en RESULTADOS.md (CNN F2 0.834 ± 0.013). Pendiente: revisión manual de FP/FN grandes y comparación con el paper. |
 | 6 Demo | Gradio + Hugging Face Spaces | No empezada. |
 | 7 Cierre | Informe, presentación, README portfolio, repo público | No empezada. |
 
-Resultados reales vigentes: ver `RESULTADOS.md` (todo en validación; ΔF2 CNN−baseline = +0.10, IC [0.035, 0.178]). Test: no se evaluó nunca.
+Resultados reales vigentes: ver `RESULTADOS.md` (todo en validación; ΔF2 CNN−baseline = +0.10, IC [0.035, 0.178]). Test: evaluado UNA vez (no se vuelve a usar para decidir nada).
 
 ## Mapa del código (`src/inspectia/`)
 - `utils.py`: `set_seed`, `get_device` (CUDA > MPS > CPU), `load_config(yaml)`, `init_wandb` (None si no hay wandb).
@@ -65,5 +65,5 @@ Muy ajustado: el plan original son 10 semanas. Delegar lo marcado "delegable" en
 
 ## Próximo paso
 1. (Opcional) semillas de scratch.
-2. Fase 5: commit y push, y correr `05_evaluacion` una sola vez (D-045 aprobado). Después, completar la comparación con el paper con datos reales. Entorno: autoencoder. Entorno local: `.venv` en `InspectIA/` con Python 3.14 y torch 2.15 (el plan decía 3.11; sin problemas hasta ahora). VS Code: kernel `InspectIA (.venv)` registrado con ipykernel; abrir la carpeta `InspectIA/`, no `repo/`.
+2. Fase 6 (demo Gradio + Hugging Face Spaces) y Fase 7 (informe, presentación, README, repo público). Pendientes de Fase 5: comparación con el paper (datos reales) y revisar a mano los FP de mayor score y los FN grandes. Entorno: autoencoder. Entorno local: `.venv` en `InspectIA/` con Python 3.14 y torch 2.15 (el plan decía 3.11; sin problemas hasta ahora). VS Code: kernel `InspectIA (.venv)` registrado con ipykernel; abrir la carpeta `InspectIA/`, no `repo/`.
 3. Commit/push de `feat/baseline-cnn` y PR a `main` (Mati revisa). `splits/` hay que agregarlo a git.
