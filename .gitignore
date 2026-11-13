@@ -24,3 +24,7 @@ dist/
 *.joblib
 features/
 results/
+
+# Hugging Face Space build output
+space/
+space_static/

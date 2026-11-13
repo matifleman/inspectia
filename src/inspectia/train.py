@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch import nn
 
@@ -107,3 +108,102 @@ def fit_stage(model: nn.Module, loaders: dict, device, stage: str, epochs: int, 
 def save_checkpoint(model: nn.Module, path: str | Path) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), path)
+
+
+# --------------------------------------------------------------------------- #
+# Autoencoder (Phase 4)
+# --------------------------------------------------------------------------- #
+# Image-level anomaly score variants computed from the per-pixel reconstruction error.
+# A defect is small (median 1.6 % of the image), so the plain mean dilutes it; the top-k
+# variants look only at the worst pixels. Which variant to use is chosen on VALIDATION (AP).
+SCORE_VARIANTS = ("mean", "top5", "top1", "max")
+
+
+def error_map(model: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    """Per-pixel squared reconstruction error averaged over channels: (B, H, W)."""
+    return ((model(x) - x) ** 2).mean(dim=1)
+
+
+def score_variants(err: torch.Tensor, smooth: int = 9) -> dict[str, torch.Tensor]:
+    """Image-level scores (B,) from error maps (B, H, W). `smooth` = odd kernel of the local
+    average (suppresses isolated noisy pixels before taking the worst ones)."""
+    b = err.shape[0]
+    sm = F.avg_pool2d(err.unsqueeze(1), smooth, stride=1, padding=smooth // 2).reshape(b, -1)
+    n = sm.shape[1]
+    out = {"mean": err.reshape(b, -1).mean(dim=1), "max": sm.max(dim=1).values}
+    for name, frac in (("top5", 0.05), ("top1", 0.01)):
+        out[name] = sm.topk(max(1, int(frac * n)), dim=1).values.mean(dim=1)
+    return out
+
+
+@torch.no_grad()
+def anomaly_scores(model: nn.Module, loader, device, smooth: int = 9, max_batches: int | None = None):
+    """(y_true, {variant: scores}, mean reconstruction MSE) over a loader; eval mode."""
+    model.eval()
+    ys, acc, mse_sum, n = [], {k: [] for k in SCORE_VARIANTS}, 0.0, 0
+    for i, (x, y) in enumerate(loader):
+        if max_batches is not None and i >= max_batches:
+            break
+        # Reduce on CPU: topk over ~136k pixels is unreliable on the MPS backend (in the smoke test
+        # top1 and top5 came out constant, AUC exactly 0.5), and it costs little.
+        err = error_map(model, x.to(device)).cpu()
+        for k, v in score_variants(err, smooth).items():
+            acc[k].append(v.numpy())
+        mse_sum += err.mean(dim=(1, 2)).sum().item()
+        n += len(y)
+        ys.append(y.numpy())
+    return np.concatenate(ys), {k: np.concatenate(v) for k, v in acc.items()}, mse_sum / max(n, 1)
+
+
+def fit_autoencoder(model: nn.Module, loaders: dict, device, epochs: int, lr: float,
+                    weight_decay: float = 1e-5, patience: int = 6, monitor: str = "top1",
+                    smooth: int = 9, max_batches: int | None = None, wandb_run=None) -> list[dict]:
+    """Train on good parts only (MSE) and leave in `model` the weights of the epoch with the best
+    validation AP of the `monitor` score variant. Validation labels are used ONLY to pick the
+    epoch (the loss never sees them); the test set never intervenes.
+    """
+    if monitor not in SCORE_VARIANTS:
+        raise ValueError(f"monitor must be one of {SCORE_VARIANTS}")
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    loss_fn = nn.MSELoss()
+    best_score, best_state, bad, history = -1.0, None, 0, []
+
+    for epoch in range(1, epochs + 1):
+        t0 = time.perf_counter()
+        model.train()
+        total, n = 0.0, 0
+        for i, (x, _) in enumerate(loaders["train_good"]):
+            if max_batches is not None and i >= max_batches:
+                break
+            x = x.to(device)
+            optimizer.zero_grad()
+            loss = loss_fn(model(x), x)
+            loss.backward()
+            optimizer.step()
+            total += loss.item() * len(x)
+            n += len(x)
+        y, scores, val_mse = anomaly_scores(model, loaders["val"], device, smooth, max_batches)
+        two_classes = len(set(y.tolist())) > 1
+        aps = {k: (float(average_precision_score(y, v)) if two_classes else 0.0) for k, v in scores.items()}
+        val_auc = float(roc_auc_score(y, scores[monitor])) if two_classes else float("nan")
+        val_f2 = best_f2(y, scores[monitor])[0] if two_classes else 0.0
+        row = dict(stage="ae", epoch=epoch, train_loss=total / max(n, 1), val_mse=val_mse,
+                   val_ap=aps[monitor], val_auc=val_auc, val_f2=val_f2,
+                   **{f"ap_{k}": v for k, v in aps.items()}, seconds=time.perf_counter() - t0)
+        history.append(row)
+        print(f"[ae] ep {epoch}/{epochs} | train_mse {row['train_loss']:.4f} | val_mse {val_mse:.4f}"
+              f" | val_AP({monitor}) {row['val_ap']:.4f} | val_AUC {val_auc:.4f} | val_F2 {val_f2:.4f}"
+              f" | {row['seconds']:.0f}s")
+        if wandb_run is not None:
+            wandb_run.log({f"ae/{k}": v for k, v in row.items() if k != "stage"})
+        if row["val_ap"] > best_score:
+            best_score, best_state, bad = row["val_ap"], copy.deepcopy(model.state_dict()), 0
+        else:
+            bad += 1
+            if bad >= patience:
+                print(f"[ae] early stopping (no improvement in {patience} epochs)")
+                break
+
+    model.load_state_dict(best_state)
+    print(f"[ae] best val_AP({monitor}) = {best_score:.4f}")
+    return history

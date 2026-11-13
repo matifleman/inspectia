@@ -68,6 +68,11 @@ redistributed in this repo; `scripts/download_data.py` fetches it from the offic
 > Božič, J., Tabernik, D., & Skočaj, D. (2021). Mixed supervision for surface-defect detection:
 > from weakly to fully supervised learning. *Computers in Industry*, 129, 103459.
 
+## Live demo
+
+Try it in the browser (the model runs client-side with ONNX Runtime Web; no image leaves your device): <https://huggingface.co/spaces/ipejinakis/inspetIA>.
+Local Gradio version: `python demo/app.py`.
+
 ## Project status and docs
 
 Current phase status, decisions log and results live in [`docs/ESTADO.md`](docs/ESTADO.md),

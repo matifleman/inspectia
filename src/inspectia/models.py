@@ -134,3 +134,48 @@ def count_trainable(model: nn.Module) -> tuple[int, int]:
     """(trainable parameters, total parameters)."""
     total = sum(p.numel() for p in model.parameters())
     return sum(p.numel() for p in model.parameters() if p.requires_grad), total
+
+
+# --------------------------------------------------------------------------- #
+# Convolutional autoencoder (Phase 4, anomaly detection)
+# --------------------------------------------------------------------------- #
+class ConvAutoencoder(nn.Module):
+    """Fully convolutional autoencoder trained ONLY on good parts (plan, Phase 4).
+
+    Idea: the network learns to reconstruct normal texture; a defect is something it has never
+    seen, so it is reconstructed badly and the reconstruction error lights up there.
+
+    Encoder: 4 stride-2 conv blocks (608x224 -> 38x14) + 1x1 conv to `bottleneck` channels.
+    Decoder: mirror with nearest-neighbour upsampling + conv (avoids checkerboard artifacts).
+    The bottleneck is spatial (38x14x`bottleneck` values), so it keeps WHERE things are.
+    A bottleneck that is too wide lets the network copy the input, defects included
+    (identity shortcut); too narrow and it cannot even rebuild normal texture. It is a
+    hyperparameter to tune with the validation AP.
+    Input height/width must be multiples of 16.
+    """
+
+    def __init__(self, base: int = 16, bottleneck: int = 16):
+        super().__init__()
+
+        def down(cin, cout):
+            return nn.Sequential(nn.Conv2d(cin, cout, 3, stride=2, padding=1),
+                                 nn.BatchNorm2d(cout), nn.ReLU(inplace=True))
+
+        def up(cin, cout):
+            return nn.Sequential(nn.Upsample(scale_factor=2, mode="nearest"),
+                                 nn.Conv2d(cin, cout, 3, padding=1),
+                                 nn.BatchNorm2d(cout), nn.ReLU(inplace=True))
+
+        b = base
+        self.encoder = nn.Sequential(down(3, b), down(b, 2 * b), down(2 * b, 4 * b), down(4 * b, 8 * b),
+                                     nn.Conv2d(8 * b, bottleneck, 1))
+        self.decoder = nn.Sequential(nn.Conv2d(bottleneck, 8 * b, 1), nn.ReLU(inplace=True),
+                                     up(8 * b, 4 * b), up(4 * b, 2 * b), up(2 * b, b), up(b, b),
+                                     nn.Conv2d(b, 3, 3, padding=1))   # linear output: targets are normalized
+
+    def forward(self, x):
+        return self.decoder(self.encoder(x))
+
+
+def build_autoencoder(base: int = 16, bottleneck: int = 16) -> nn.Module:
+    return ConvAutoencoder(base, bottleneck)

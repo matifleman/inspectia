@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InspectIA</title>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --mut:#667; --card:#f4f5f7; --bd:#d8dbe0; --ok:#1a7f37; --rev:#b35900; --bad:#c62828; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171b; --fg:#e8eaed; --mut:#9aa3ad; --card:#1e2227; --bd:#333a42; --ok:#4cc26b; --rev:#ffa94d; --bad:#ff6b6b; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,sans-serif; }
+  main { max-width:900px; margin:0 auto; padding:16px; }
+  h1 { margin:.2em 0; font-size:1.5rem; } p.sub { color:var(--mut); margin-top:0; }
+  #drop { display:block; box-sizing:border-box; border:2px dashed var(--bd); border-radius:12px; padding:24px; text-align:center; background:var(--card); cursor:pointer; }
+  #drop.over { border-color:var(--fg); }
+  .row { display:flex; flex-wrap:wrap; gap:16px; margin-top:16px; }
+  .col { flex:1 1 260px; min-width:0; }
+  canvas { width:100%; height:auto; border-radius:8px; border:1px solid var(--bd); background:var(--card); }
+  .verdict { font-size:1.6rem; font-weight:700; margin:.2em 0; }
+  .DEFECTUOSA { color:var(--bad); } .REVISAR { color:var(--rev); } .OK { color:var(--ok); }
+  .bar { height:12px; border-radius:6px; background:var(--card); border:1px solid var(--bd); position:relative; margin:8px 0 4px; }
+  .bar i { position:absolute; top:-3px; width:2px; height:18px; background:var(--fg); }
+  .bar b { display:block; height:100%; border-radius:6px; background:var(--fg); opacity:.55; }
+  small, .note { color:var(--mut); font-size:.85rem; }
+  #status { color:var(--mut); margin:8px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>InspectIA · inspección visual de defectos</h1>
+  <p class="sub">ResNet18 con fine-tuning entrenada en KolektorSDD2. El modelo corre en tu navegador: la imagen no se sube a ningún servidor.</p>
+  <div id="status">Cargando modelo…</div>
+  <label id="drop">
+    <input id="file" type="file" accept="image/*" hidden>
+    Arrastrá una imagen de la pieza acá o hacé clic para elegirla
+  </label>
+  <div class="row" id="result" hidden>
+    <div class="col"><canvas id="orig"></canvas><small>Imagen (redimensionada a 224×608)</small></div>
+    <div class="col"><canvas id="cam"></canvas><small>Grad-CAM: dónde mira la red</small></div>
+    <div class="col">
+      <div id="verdict" class="verdict"></div>
+      <div id="explain"></div>
+      <div class="bar"><b id="fill"></b><i id="thr"></i></div>
+      <small id="nums"></small>
+    </div>
+  </div>
+  <p class="note">El mapa Grad-CAM se normaliza por imagen: solo es informativo cuando el veredicto es DEFECTUOSA o REVISAR.
+  Proyecto académico, no usar para decisiones reales de producción. Dataset: KolektorSDD2 (ViCoS Lab, CC BY-NC-SA 4.0),
+  Božič, Tabernik &amp; Skočaj (2021), <i>Computers in Industry</i> 129, 103459.</p>
+</main>
+<script>
+const H = 608, W = 224;                        // model input (height, width), same as IMG_SIZE
+const MEAN = [0.485, 0.456, 0.406], STD = [0.229, 0.224, 0.225];
+const TEXT = {
+  DEFECTUOSA: "Supera el umbral oficial: separar la pieza.",
+  REVISAR: "Zona gris (bajo el umbral oficial pero con score alto): que la mire una persona.",
+  OK: "Score bajo: sin indicios de defecto.",
+};
+let session = null, info = null;
+
+ort.env.wasm.numThreads = 1;
+
+async function init() {
+  const status = document.getElementById("status");
+  try {
+    info = await (await fetch("model_info.json")).json();
+    session = await ort.InferenceSession.create("model.onnx", { executionProviders: ["wasm"] });
+    status.textContent = `Modelo listo · umbral oficial ${info.threshold.toFixed(3)} (máx. F2 en validación)`;
+  } catch (e) {
+    status.textContent = "No se pudo cargar el modelo: " + e;
+  }
+}
+
+function decide(p) {
+  if (p >= info.threshold) return "DEFECTUOSA";
+  if (p >= Math.min(info.review_low, info.threshold)) return "REVISAR";
+  return "OK";
+}
+
+// matplotlib "jet"
+function jet(v) {
+  const c = (t) => Math.max(0, Math.min(1, t));
+  return [c(1.5 - Math.abs(4 * v - 3)), c(1.5 - Math.abs(4 * v - 2)), c(1.5 - Math.abs(4 * v - 1))];
+}
+
+// bilinear upsample (h,w) -> (H,W) with align_corners=False, then min-max normalize (as explain.gradcam)
+function upsampleNorm(cam, h, w) {
+  const out = new Float32Array(H * W);
+  let mn = Infinity, mx = -Infinity;
+  for (let y = 0; y < H; y++) {
+    const sy = Math.min(Math.max((y + 0.5) * h / H - 0.5, 0), h - 1);
+    const y0 = Math.floor(sy), y1 = Math.min(y0 + 1, h - 1), fy = sy - y0;
+    for (let x = 0; x < W; x++) {
+      const sx = Math.min(Math.max((x + 0.5) * w / W - 0.5, 0), w - 1);
+      const x0 = Math.floor(sx), x1 = Math.min(x0 + 1, w - 1), fx = sx - x0;
+      const v = (1 - fy) * ((1 - fx) * cam[y0 * w + x0] + fx * cam[y0 * w + x1])
+              + fy * ((1 - fx) * cam[y1 * w + x0] + fx * cam[y1 * w + x1]);
+      out[y * W + x] = v;
+      if (v < mn) mn = v; if (v > mx) mx = v;
+    }
+  }
+  for (let i = 0; i < out.length; i++) out[i] = (out[i] - mn) / (mx - mn + 1e-8);
+  return out;
+}
+
+async function inspect(img) {
+  const c = document.getElementById("orig");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.imageSmoothingQuality = "high";
+  g.drawImage(img, 0, 0, W, H);
+  const rgba = g.getImageData(0, 0, W, H).data;
+  const t = new Float32Array(3 * H * W);
+  for (let i = 0; i < H * W; i++)
+    for (let ch = 0; ch < 3; ch++) t[ch * H * W + i] = (rgba[4 * i + ch] / 255 - MEAN[ch]) / STD[ch];
+
+  const out = await session.run({ input: new ort.Tensor("float32", t, [1, 3, H, W]) });
+  const logit = out.logit.data[0];
+  const prob = 1 / (1 + Math.exp(-logit));
+  const [, ch, cw] = out.cam.dims;
+  const cam = upsampleNorm(out.cam.data, ch, cw);
+
+  const cc = document.getElementById("cam");
+  cc.width = W; cc.height = H;
+  const cg = cc.getContext("2d");
+  const im = cg.createImageData(W, H);
+  for (let i = 0; i < H * W; i++) {
+    const a = 0.65 * cam[i], h = jet(cam[i]);
+    for (let k = 0; k < 3; k++) im.data[4 * i + k] = 255 * ((1 - a) * rgba[4 * i + k] / 255 + a * h[k]);
+    im.data[4 * i + 3] = 255;
+  }
+  cg.putImageData(im, 0, 0);
+
+  const v = decide(prob);
+  const ve = document.getElementById("verdict");
+  ve.textContent = v; ve.className = "verdict " + v;
+  document.getElementById("explain").textContent = TEXT[v];
+  document.getElementById("fill").style.width = (prob * 100) + "%";
+  document.getElementById("thr").style.left = (info.threshold * 100) + "%";
+  document.getElementById("nums").textContent =
+    `Probabilidad de defecto: ${prob.toFixed(3)} · umbral oficial: ${info.threshold.toFixed(3)} · zona de revisión desde: ${info.review_low.toFixed(2)}`;
+  document.getElementById("result").hidden = false;
+}
+
+function handleFile(file) {
+  if (!file || !session) return;
+  const img = new Image();
+  img.onload = () => { inspect(img).catch((e) => (document.getElementById("status").textContent = "Error: " + e)); URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(file);
+}
+
+const drop = document.getElementById("drop");
+document.getElementById("file").addEventListener("change", (e) => handleFile(e.target.files[0]));
+["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => handleFile(e.dataTransfer.files[0]));
+init();
+</script>
+</body>
+</html>
