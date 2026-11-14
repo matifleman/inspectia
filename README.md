@@ -122,12 +122,15 @@ Then run the notebooks in order: `01_datos` → `02_baseline` → `03_cnn` → `
 → `05_evaluacion`. Each one starts with a common bootstrap cell. Training was done on Google Colab
 (Tesla T4) and on an Apple-silicon Mac (MPS):
 
-| Package | Colab version |
+| Package | Colab version (checked 2026-11-14) |
 |---|---|
-| Python | 3.13.15 |
-| torch | 2.11.0+cu130 |
-| torchvision | 0.26.0+cu130 |
+| Python | 3.13.16 |
+| torch | 2.14.1+cu130 |
+| torchvision | 0.29.1+cu130 |
 | CUDA / GPU | 13.0 / Tesla T4 |
+
+Colab upgrades torch over time (it was 2.11.0 when the project started); the other packages are
+pinned in `requirements.txt`.
 
 <details>
 <summary>Team setup (Colab + shared Drive)</summary>
