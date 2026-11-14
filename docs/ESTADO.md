@@ -2,7 +2,9 @@
 
 > Si sos un agente de IA: leé también `CLAUDE.md` (reglas) en la raíz del repo.
 
-Última actualización: 2026-11-06 (cierre de Fase 5; handoff al equipo) · Repo oficial: github.com/matifleman/inspectia · Rama de trabajo: `feat/baseline-cnn`.
+Última actualización: 2026-11-13 (PR #2 mergeado a `main`; tareas de cierre asignadas) · Repo oficial: github.com/matifleman/inspectia · Rama de trabajo: `main` (ramas por tarea + PR).
+
+Equipo: Matías Fleman (Mati), Juan Ignacio Pejinakis Dip (Juan), Pablo Lamela (Pablo), María Eugenia Quadro (Eugenia).
 **Entrega: lunes 16/11/2026, con TODO el plan (Fases 0 a 7), sin recortes (D-023).**
 
 ## Documentación
@@ -52,7 +54,7 @@ Resultados reales vigentes: ver `RESULTADOS.md` (todo en validación; ΔF2 CNN�
 7. Demo pública (Space Static, gratis): `python scripts/export_onnx.py --out space_static` (necesita `onnx` y `onnxruntime`; verifica equivalencia con PyTorch), probar con `cd space_static && python -m http.server 8000` y subir los 4 archivos al Space. `space/` y `space_static/` están en `.gitignore`. Gradio Spaces en Hugging Face requieren plan pago (D-049).
 
 ## Artefactos que no están en git (gitignored)
-Subidos el 2026-11-06 a la carpeta compartida de Drive `InspectIA/artefactos/{checkpoints,results}/` (misma estructura que el repo). Para usarlos: copiar `artefactos/checkpoints` → `repo/checkpoints/` y `artefactos/results` → `repo/results/` (en Colab con Drive montado: `cp -r`).
+Subidos el 2026-11-06 a la carpeta compartida de Drive y movidos el 2026-11-14 a `InspectIA/checkpoints/` e `InspectIA/results/` (antes estaban en `InspectIA/artefactos/`, que quedó vacía). Así coinciden con las rutas que usan los notebooks en Colab (`DRIVE_ROOT / "checkpoints"` y `DRIVE_ROOT / "results"`). Para trabajar en local: copiarlas a `repo/checkpoints/` y `repo/results/`.
 | Archivo | Para qué | Tamaño |
 |---|---|---|
 | `checkpoints/cnn_resnet18.pt` (+ `_s1`, `_s2`) | CNN oficial, demo (Fase 6) y Grad-CAM | 45 MB c/u |
@@ -71,14 +73,14 @@ Test (1004 imágenes, 110 defectuosas, umbral fijado en val): CNN F2 0.834 ± 0.
 ## Qué falta (hasta el lunes 16/11) y quién lo hace
 | # | Tarea | Detalle | Responsable |
 |---|---|---|---|
-| 1 | Comparación con el paper | Copiar de Božič, Tabernik y Skočaj (2021) la tabla de KolektorSDD2 y el protocolo (métrica, split, resolución, umbral) y completar sección 9 de `05_evaluacion.ipynb` + `RESULTADOS.md`. No inventar números. PDF: prints.vicos.si/publications/385 · arXiv 2104.06064. Aclarar diferencias de protocolo (F2/AP con umbral de val vs lo que reportan). | _a asignar_ |
-| 2 | Revisión manual de errores | Mirar a ojo FP de mayor score (20245, 20651, 20002, 20846) y FN grandes (20141, 20625, 20969, 20772): ¿ruido de etiqueta, defecto invisible o fallo real? Anotar en RESULTADOS.md. | _a asignar_ |
+| 1 | Comparación con el paper | Copiar de Božič, Tabernik y Skočaj (2021) la tabla de KolektorSDD2 y el protocolo (métrica, split, resolución, umbral) y completar sección 9 de `05_evaluacion.ipynb` + `RESULTADOS.md`. No inventar números. PDF: prints.vicos.si/publications/385 · arXiv 2104.06064. Aclarar diferencias de protocolo (F2/AP con umbral de val vs lo que reportan). **Hecha 2026-11-13** (RESULTADOS.md y sección 9 de `05_evaluacion`). | Eugenia |
+| 2 | Revisión manual de errores | Mirar a ojo FP de mayor score (20245, 20651, 20002, 20846) y FN grandes (20141, 20625, 20969, 20772): ¿ruido de etiqueta, defecto invisible o fallo real? Anotar en RESULTADOS.md. **Hecha 2026-11-13** (RESULTADOS.md, figuras en `docs/img/revision_*`). | Eugenia |
 | 3 | Fase 6: demo | **Hecha.** URL: https://huggingface.co/spaces/ipejinakis/inspetIA. Pendiente solo: probar el Space con una buena y una defectuosa (confirmado en localhost). | Juan |
-| 4 | Fase 7: informe | Estructura y tono del plan. Insumos: RESULTADOS.md, DECISIONES.md, figuras del `05_evaluacion`, `GUIA_CONCEPTOS.md`. Declarar limitaciones y que el test se usó una vez. | _a asignar_ |
-| 5 | Fase 7: presentación y README portfolio | README en inglés orientado a portfolio, repo público (dataset citado, no redistribuido). | _a asignar_ |
-| 6 | Prácticas 2 a 8 | Redacción de la consigna según `docs/planning` y el material ya escrito. | _a asignar_ |
-| 7 | Verificar `00_setup` en Colab | W&B, Drive compartido, quién entrena en Colab. Decidir qué hacer con el cambio local de `00_setup.ipynb`. | Mati |
-| 8 | Housekeeping | Pinear `scikit-image` y `joblib` (hoy `>=`) con las versiones de Colab. Abrir PR `feat/baseline-cnn` → `main` y aprobar. | Mati / Juan |
+| 4 | Fase 7: informe | Estructura y tono del plan. Insumos: RESULTADOS.md, DECISIONES.md, figuras del `05_evaluacion`, `GUIA_CONCEPTOS.md`. Declarar limitaciones y que el test se usó una vez. | Eugenia (el grupo completa y revisa) |
+| 5 | Fase 7: presentación y README portfolio | README en inglés orientado a portfolio, repo público (dataset citado, no redistribuido). El repo ya es público. README de portfolio **hecho 2026-11-13**; falta la presentación. | Eugenia |
+| 6 | Prácticas 2 a 8 | Redacción de la consigna según `docs/planning` y el material ya escrito. | Los 4 (propuesta: 2–3 Pablo · 4–5 Juan · 6 Mati · 7–8 Eugenia) |
+| 7 | Verificar `00_setup` en Colab | W&B, Drive compartido, quién entrena en Colab. Decidir qué hacer con el cambio local de `00_setup.ipynb`. Revisión del 2026-11-13 (sin Colab): (a) ~~Las carpetas del Drive no coincidían con las rutas de Colab~~: **resuelto el 2026-11-14**, `checkpoints/` y `results/` movidas de `artefactos/` a `InspectIA/` (el lock del test quedó en `results/`). (b) La celda 5 de versiones ahora también imprime `scikit-image` y `joblib`, para fijarlas (fila 8). (c) El smoke test redimensiona a 640×224 en vez de 608×224 (`IMG_SIZE`); es solo una prueba de humo, no afecta resultados. Corrido por Eugenia el 2026-11-14 en Colab (T4): todas las celdas sin error, corrida de W&B registrada (en su cuenta personal, no en el proyecto del equipo). Ojo: el dataset se volvió a descargar, señal de que no tomó el Drive compartido (falta el acceso directo a `InspectIA` en Mi unidad); repetir con el acceso directo y guardar el notebook con salidas. | Mati |
+| 8 | Housekeeping | ~~Pinear `scikit-image` y `joblib`~~ (hecho 2026-11-14: 0.25.2 y 1.6.0, salida de `00_setup` en Colab). ~~Abrir PR `feat/baseline-cnn` → `main` y aprobar~~ (hecho: PR #2 mergeado el 2026-11-13). | Mati |
 
 Si hay atraso, el plan recorta en este orden: MVTec AD, anomalib, clustering, demo mínima (la demo mínima = score + decisión, sin Grad-CAM).
 

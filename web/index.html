@@ -103,13 +103,64 @@ function upsampleNorm(cam, h, w) {
   return out;
 }
 
+// Antialiased bilinear resize, same algorithm as torchvision Resize(antialias=True) / Pillow BILINEAR,
+// which is what the model saw in training and evaluation (src/inspectia/data.py). The browser's own
+// canvas scaling (imageSmoothingQuality) uses another kernel and shifted borderline probabilities by
+// up to ~0.1 (e.g. val image 12329: 0.28 vs 0.38), so we resample by hand (D-050).
+function aaWeights(inSize, outSize) {
+  const scale = inSize / outSize, fs = Math.max(scale, 1), support = fs;
+  const res = [];
+  for (let o = 0; o < outSize; o++) {
+    const center = (o + 0.5) * scale;
+    const xmin = Math.max(Math.trunc(center - support + 0.5), 0);
+    const xmax = Math.min(Math.trunc(center + support + 0.5), inSize);
+    const w = []; let sum = 0;
+    for (let i = xmin; i < xmax; i++) {
+      const t = Math.abs((i - center + 0.5) / fs), v = t < 1 ? 1 - t : 0;
+      w.push(v); sum += v;
+    }
+    res.push({ xmin, w: w.map((v) => (sum ? v / sum : 0)) });
+  }
+  return res;
+}
+// rgba (inW x inH) -> Uint8ClampedArray RGBA (W x H): horizontal pass, then vertical, uint8 after each.
+function resizeAA(rgba, inW, inH) {
+  const wx = aaWeights(inW, W), wy = aaWeights(inH, H);
+  const tmp = new Uint8ClampedArray(3 * inH * W);
+  for (let y = 0; y < inH; y++)
+    for (let x = 0; x < W; x++) {
+      const { xmin, w } = wx[x];
+      for (let ch = 0; ch < 3; ch++) {
+        let s = 0;
+        for (let k = 0; k < w.length; k++) s += w[k] * rgba[4 * (y * inW + xmin + k) + ch];
+        tmp[3 * (y * W + x) + ch] = Math.round(s);
+      }
+    }
+  const out = new Uint8ClampedArray(4 * H * W);
+  for (let y = 0; y < H; y++) {
+    const { xmin: ymin, w } = wy[y];
+    for (let x = 0; x < W; x++) {
+      for (let ch = 0; ch < 3; ch++) {
+        let s = 0;
+        for (let k = 0; k < w.length; k++) s += w[k] * tmp[3 * ((ymin + k) * W + x) + ch];
+        out[4 * (y * W + x) + ch] = Math.round(s);
+      }
+      out[4 * (y * W + x) + 3] = 255;
+    }
+  }
+  return out;
+}
+
 async function inspect(img) {
+  // read the image at its native size (no browser scaling), then resample like torchvision
+  const src = document.createElement("canvas");
+  src.width = img.naturalWidth || img.width; src.height = img.naturalHeight || img.height;
+  const sg = src.getContext("2d", { willReadFrequently: true });
+  sg.drawImage(img, 0, 0);
+  const rgba = resizeAA(sg.getImageData(0, 0, src.width, src.height).data, src.width, src.height);
   const c = document.getElementById("orig");
   c.width = W; c.height = H;
-  const g = c.getContext("2d", { willReadFrequently: true });
-  g.imageSmoothingQuality = "high";
-  g.drawImage(img, 0, 0, W, H);
-  const rgba = g.getImageData(0, 0, W, H).data;
+  c.getContext("2d").putImageData(new ImageData(rgba, W, H), 0, 0);
   const t = new Float32Array(3 * H * W);
   for (let i = 0; i < H * W; i++)
     for (let ch = 0; ch < 3; ch++) t[ch * H * W + i] = (rgba[4 * i + ch] / 255 - MEAN[ch]) / STD[ch];
