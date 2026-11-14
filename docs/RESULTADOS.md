@@ -151,7 +151,68 @@ El Grad-CAM calculado así es exacto porque tras `layer4` hay average-pool + Lin
 |---|---|---|---|---|
 | `train/10628.png` | defectuosa (3863 px) | DEFECTUOSA | 1.000 | cae sobre el defecto (borde izquierdo) |
 | `train/11318.png` | buena | OK | 0.047 | dibuja zonas igual (se normaliza por imagen; solo informativo si el veredicto no es OK) |
-Pendiente de registrar: salida de la celda de consistencia de `06_demo.ipynb` (`max |diff|` contra los scores de val guardados) y prueba del Space público.
+**Consistencia de `06_demo.ipynb` (2026-11-13, CPU, notebook ejecutado y guardado con salidas):** el pipeline de la demo (imagen suelta → probabilidad) reproduce los scores de validación guardados en la Fase 3: `max |diff|` = 4.17e-07 sobre 30 imágenes de VALIDACIÓN (las 20 primeras + 10 defectuosas; tolerancia 1e-3). Celda de ejemplo (validación): `train/12329.png` (buena) → REVISAR, p = 0.381; `train/10905.png` (defectuosa) → DEFECTUOSA, p = 1.000, Grad-CAM sobre la raya; ≈ 0.2 s por imagen en CPU.
+
+**Prueba del Space público (2026-11-13, Eugenia):** con `train/12329.png` (validación, buena) el Space mostró OK, p = 0.281, cuando el modelo oficial da 0.381 (REVISAR). Causa: el redimensionado del navegador no es el de torchvision (D-050). Probabilidad de la misma imagen según el método de redimensionado (exploratorio): bilineal con antialias 0.381 · bicúbico 0.290 · box 0.283 · vecino más cercano 0.286 · Lanczos 0.223. Corregido en `web/index.html` (bilineal con antialias hecho a mano): en 38 imágenes la diferencia con el modelo oficial es como máximo 0.007 (12329 → 0.385, REVISAR). Con la versión vieja, `12160.png` (defectuosa) dio DEFECTUOSA y `10811.png` (buena) dio OK, como se esperaba: el error solo cambia el veredicto en casos dudosos. **Pendiente:** volver a subir `index.html` al Space y repetir la prueba con `12160.png` (defectuosa, esperado ≈ 1.00), `10811.png` (buena, ≈ 0.06) y `12329.png` (≈ 0.38).
+
+## Comparación con el paper del dataset (2026-11-13, valores copiados del paper)
+Fuente: Božič, Tabernik y Skočaj (2021), Computers in Industry 129, 103459 (arXiv 2104.06064), sección 5.3 y Fig. 9. El paper **no trae tabla** para KolektorSDD2: los resultados están en la Fig. 9 y el texto cita solo tres valores, que se copian tal cual (los de N = 53 y N = 126 no se citan y no se leen del gráfico).
+
+| Fuente | Método | Supervisión | AP en test |
+|---|---|---|---|
+| Paper | Segmentación + clasificación end-to-end | Débil, solo etiqueta por imagen (N = 0) | 73,3 % |
+| Paper | ídem | Mixta, + 16 imágenes con máscara (N = 16) | 83,2 % |
+| Paper | ídem | Completa, todas las máscaras (N = Nall) | 95,4 % |
+| Nuestro | CNN ResNet18 fine-tuning (3 semillas) | Solo etiqueta por imagen | 91,6 % ± 0,2 |
+| Nuestro | Baseline ResNet18 + logística | Solo etiqueta por imagen | 78,0 % |
+| Nuestro | Autoencoder (solo buenas) | Sin etiquetas de defecto | 74,4 % ± 1,5 |
+
+- Igual: split oficial de test (894 + 110) y métrica (AP por imagen).
+- Distinto: el paper no menciona validación ni cantidad de corridas; no indica la resolución de entrada para KSDD2 (describe ~230 × 630 y mide velocidad a 232 × 640; nosotros 224 × 608); arquitectura y entrenamiento distintos (50 épocas, batch 1; nosotros ResNet18 preentrenada en ImageNet).
+- Lectura: nuestra CNN usa la supervisión del caso débil (N = 0) del paper y supera ese AP (91,6 % vs 73,3 %), pero queda debajo del modelo con todas las máscaras (95,4 %). No es una comparación controlada (cambian arquitectura y preentrenamiento): sirve para ubicar el resultado, no para afirmar que el método es mejor. El paper no reporta F2, recall, FP ni FN para KSDD2.
+
+## Revisión manual de errores de la CNN (2026-11-13, exploratoria)
+Análisis **exploratorio** sobre el test ya evaluado (no se usó para decidir nada ni cambia ninguna cifra oficial). Se recalcularon las probabilidades de `cnn_resnet18.pt` (semilla 42) sobre las 8 imágenes y coinciden exactamente con `results/test_scores.npz`. Para cada una se miró la imagen original, una versión con contraste realzado (percentiles 1–99,8), la máscara y el Grad-CAM. Figuras: `docs/img/revision_fp_gradcam.png`, `docs/img/revision_fn_gradcam.png`, `docs/img/revision_fp_vs_defectos_chicos.png`.
+
+**Falsos positivos de mayor probabilidad (máscara vacía):**
+| Imagen | Prob. CNN | Qué se ve donde mira el Grad-CAM | Veredicto |
+|---|---|---|---|
+| 20245 | 0.98 | Punto brillante rojizo de pocos píxeles (≈ 27 px por encima del fondo), justo en el pico del mapa. | Ambiguo: posible defecto mínimo sin anotar |
+| 20651 | 0.98 | Mancha tenue azulada e irregular en el borde derecho; la imagen es más oscura que el resto (brillo medio 27 vs ≈ 45). | Ambiguo: posible mancha sin anotar |
+| 20002 | 0.93 | Punto blanco saturado (255) en el borde derecho. | Ambiguo: posible defecto mínimo sin anotar |
+| 20846 | 0.91 | Punto blanco saturado (255) en el centro-derecha; segundo pico en el borde izquierdo sin nada visible. | Ambiguo: posible defecto mínimo sin anotar |
+
+Los cuatro muestran algo real en la imagen: puntos brillantes compactos, del mismo tipo que los defectos más chicos que sí están anotados (20228 de 87 px, 20231 de 178 px y 20275 de 228 px son grupos de puntos brillantes), pero más chicos. No son errores "en el vacío": la red marca anomalías visibles. Sin el criterio de anotación de Kolektor no se puede decidir si son defectos sin anotar (ruido de etiqueta) o polvo o reflejos aceptables. En el informe se presentan como **casos ambiguos**, no como prueba de ruido de etiquetas.
+
+**Falsos negativos grandes (≥ 3000 px):**
+| Imagen | Defecto | Prob. CNN | Contraste vs entorno* | Qué se ve | Grad-CAM | Veredicto |
+|---|---|---|---|---|---|---|
+| 20141 | 3268 px | 0.09 | −5,1 (más oscuro) | Zona oscura con estrías verticales finas, pegada al borde inferior. | Cae sobre el defecto (22 % de la energía en una máscara que ocupa el 2,3 % de la imagen); el pico queda al lado. | Falla real: defecto visible pero de bajo contraste |
+| 20625 | 3271 px | 0.20 | −9,1 (más oscuro) | Zona oscura con estrías en la esquina inferior izquierda. | Pico dentro del defecto, pero hay otra zona igual de fuerte arriba, sin defecto. | Falla real: defecto oscuro y sutil |
+| 20969 | 3390 px | 0.45 | +0,4 (casi nulo) | Raya diagonal casi invisible en la original; en la versión realzada se ve como una banda de textura distinta. | Cae sobre el defecto (15 % de la energía vs 2,4 % de la imagen). | Defecto casi invisible; en la demo caería en REVISAR |
+| 20772 | 4250 px | 0.17 | +3,9 | Grupo de puntos brillantes dispersos cerca del borde superior derecho (los picos sí son brillantes: p99 108 vs 69 del resto). | Pico dentro del defecto (36 % de la energía vs 2,9 %). | Falla real: defecto visible a ojo |
+
+\* Brillo medio dentro de la máscara menos el de un anillo de 15 px alrededor (escala 0–255).
+
+- **Ninguno es un error de etiqueta evidente:** en los cuatro el defecto se ve (en 20969 solo con contraste realzado).
+- **La red mira el lugar correcto pero no alcanza el umbral:** en los cuatro, el Grad-CAM se concentra sobre el defecto. Es la misma conclusión que en los falsos negativos chicos. Ojo: el Grad-CAM se normaliza por imagen y siempre marca algo, así que esto muestra hacia dónde mira la red, no que "haya detectado" el defecto.
+- **Rasgo común:** los cuatro tienen poco contraste con el entorno (|contraste| < 10). Cómo se ve en los 110 defectuosos del test, para defectos ≥ 1000 px:
+
+| Grupo | Recall |
+|---|---|
+| \|contraste\| < 5 | 15/19 (79 %) |
+| \|contraste\| ≥ 5 | 62/67 (93 %) |
+
+  Es una tendencia, no una prueba (n chico).
+- **Hipótesis descartadas** al mirar los 110 defectuosos del test. Las sugería la inspección visual, pero los números no las sostienen:
+
+| Hipótesis | Recall a favor | Recall en contra |
+|---|---|---|
+| "Falla en defectos que tocan el borde" | Tocan el borde: 53/63 (84 %) | No lo tocan: 35/47 (74 %) |
+| "Falla en defectos más oscuros que el fondo" | Oscuros: 18/24 (75 %) | Claros: 70/86 (81 %) |
+
+- **Zona REVISAR de la demo** (probabilidad entre 0,30 y 0,663, D-048; dato informativo, no se usa para cambiar nada): incluye 8 de los 22 falsos negativos, entre ellos 20969, y 15 piezas buenas. Con un inspector humano revisando esa zona, quedarían 14 defectuosas sin revisar en lugar de 22.
+
 
 ## Pendiente
-Comparación con el paper (datos reales pendientes), revisión manual de los FP/FN grandes y Fase 7 (informe, presentación, README portfolio, repo público).
+Fase 7 (informe, presentación). Hechos el 2026-11-13: comparación con el paper, revisión manual de errores (arriba) y README de portfolio; el repo ya es público.
